@@ -112,7 +112,7 @@ export default function DonatePage() {
                   {ONGS.map((ong) => (
                     <button
                       key={ong.id}
-                      onClick={() => setSelectedOng(ong.id)}
+                      onClick={() => setSelectedOng(selectedOng === ong.id ? null : ong.id)}
                       className={`p-4 rounded-lg border-2 transition text-left ${
                         selectedOng === ong.id
                           ? "border-blue-500 bg-blue-50"
