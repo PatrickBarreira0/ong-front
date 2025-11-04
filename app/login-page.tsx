@@ -1,12 +1,48 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import SelectUserTypeModal from "@/components/modals/SelectUserTypeModal";
+import SignupONGForm from "@/components/forms/SignupONGForm";
+import SignupDonorForm from "@/components/forms/SignupDonorForm";
 
 export default function LoginPage() {
+  const [showSelectUserType, setShowSelectUserType] = useState(false);
+  const [signupType, setSignupType] = useState<"ong" | "donor" | null>(null);
+
+  const handleCreateAccount = () => {
+    setShowSelectUserType(true);
+  };
+
+  const handleSelectUserType = (type: "ong" | "donor") => {
+    setSignupType(type);
+    setShowSelectUserType(false);
+  };
+
+  const handleBackToLogin = () => {
+    setSignupType(null);
+  };
+
+  if (signupType === "ong") {
+    return <SignupONGForm onBack={handleBackToLogin} />;
+  }
+
+  if (signupType === "donor") {
+    return <SignupDonorForm onBack={handleBackToLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center p-4">
+      {/* Modal de seleção de tipo de usuário */}
+      <SelectUserTypeModal
+        open={showSelectUserType}
+        onClose={() => setShowSelectUserType(false)}
+        onSelectONG={() => handleSelectUserType("ong")}
+        onSelectDonor={() => handleSelectUserType("donor")}
+      />
+
       {/* Card de Login */}
       <Card className="w-full max-w-md bg-gradient-to-b from-blue-50 to-white border-0 shadow-lg">
         <CardContent className="pt-8 pb-12 px-8">
@@ -56,7 +92,7 @@ export default function LoginPage() {
             <Button
               type="button"
               className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium py-2 rounded-lg border border-gray-200 transition-colors"
-              onClick={() => alert("Página de cadastro em desenvolvimento")}
+              onClick={handleCreateAccount}
             >
               Criar Conta
             </Button>
