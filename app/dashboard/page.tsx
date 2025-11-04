@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar } from "@/components/ui/sidebar";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const [userName] = useState("Usuário"); // Será substituído com dados reais
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50">
@@ -72,7 +74,7 @@ export default function Dashboard() {
                 <div className="text-center">
                   <h3 className="text-gray-900 font-bold text-lg mb-4">Pronto para ajudar?</h3>
                   <Button
-                    onClick={() => alert("Fazer nova doação")}
+                    onClick={() => router.push("/dashboard/donate")}
                     className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium px-6 py-2 rounded-lg"
                   >
                     ➕ Fazer Nova Doação
