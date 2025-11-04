@@ -108,46 +108,48 @@ export default function DonatePage() {
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Selecione a ONG Destino</h3>
                 <p className="text-gray-600 text-sm mb-6">Escolha uma das ONGs parceiras para receber sua doação.</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {ONGS.map((ong) => (
-                    <button
-                      key={ong.id}
-                      onClick={() => setSelectedOng(selectedOng === ong.id ? null : ong.id)}
-                      className={`p-4 rounded-lg border-2 transition text-left ${
-                        selectedOng === ong.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 bg-white hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-1 ${
-                            selectedOng === ong.id
-                              ? "bg-blue-500 border-blue-500"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedOng === ong.id && (
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          )}
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex gap-4 min-w-max">
+                    {ONGS.map((ong) => (
+                      <button
+                        key={ong.id}
+                        onClick={() => setSelectedOng(selectedOng === ong.id ? null : ong.id)}
+                        className={`flex-shrink-0 w-72 p-4 rounded-lg border-2 transition text-left ${
+                          selectedOng === ong.id
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-1 ${
+                              selectedOng === ong.id
+                                ? "bg-blue-500 border-blue-500"
+                                : "border-gray-300"
+                            }`}
+                          >
+                            {selectedOng === ong.id && (
+                              <svg
+                                className="w-3 h-3 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{ong.name}</p>
+                            <p className="text-sm text-gray-500">{ong.address}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{ong.name}</p>
-                          <p className="text-sm text-gray-500">{ong.address}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
