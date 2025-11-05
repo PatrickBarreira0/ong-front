@@ -1,5 +1,6 @@
 "use client";
 
+import { useSignUp } from "@/features/auth/hooks/useSignUp";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ interface SignupONGFormProps {
 }
 
 export default function SignupONGForm({ onBack }: SignupONGFormProps) {
-  const [loading, setLoading] = useState(false);
+  const { signUp, isPending } = useSignUp();
   const [formData, setFormData] = useState({
     email: "",
     ongName: "",
@@ -85,16 +86,23 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
       return;
     }
 
-    setLoading(true);
-    try {
-      // TODO: Implementar requisição de cadastro para o backend
-      console.log("Cadastro de ONG:", formData);
-      // await fetch("/api/auth/signup-ong", { method: "POST", body: JSON.stringify(formData) })
-    } catch (error) {
-      console.error("Erro ao cadastrar:", error);
-    } finally {
-      setLoading(false);
-    }
+    signUp(
+      {
+        email: formData.email,
+        password: formData.password,
+        username: formData.ongName,
+        documento: formData.cnpj,
+      },
+      {
+        onSuccess: () => {
+          console.log("Cadastro realizado com sucesso!");
+        },
+        onError: (error) => {
+          console.error("Erro ao cadastrar:", error);
+          setErrors({ submit: "Erro ao cadastrar. Tente novamente." });
+        },
+      }
+    );
   };
 
   return (
@@ -300,10 +308,10 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
               </Button>
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={isPending}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
               >
-                {loading ? "Cadastrando..." : "Cadastrar"}
+                {isPending ? "Cadastrando..." : "Cadastrar"}
               </Button>
             </div>
           </form>
