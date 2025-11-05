@@ -21,17 +21,12 @@ export default function DashboardLayout({
       return;
     }
 
-    if (!userType) { //checks user type if null return login
+    if (!userType) {
       router.push("/");
       return;
     }
 
-    // ADMIN pode acessar TODAS as rotas em /dashboard/*
-    if (userType === "admin") {
-      return;
-    }
-
-    // Para outras roles (donor, ong), verificar se estão na página correta
+    // Verificar se o usuário tem acesso à página que está tentando acessar
     const allowedPaths = getPathsForRole(userType);
     const isAllowedPath = allowedPaths.some((path) => pathname.startsWith(path));
 
@@ -48,8 +43,7 @@ export default function DashboardLayout({
       case "ong":
         return ["/dashboard/ong"];
       case "admin":
-        // Admin pode acessar todas as rotas
-        return ["/dashboard"];
+        return ["/dashboard/admin"];
       default:
         return [];
     }
