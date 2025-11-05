@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,37 @@ import { Card, CardContent } from "@/components/ui/card";
 import SelectUserTypeModal from "@/components/modals/SelectUserTypeModal";
 import SignupONGForm from "@/components/forms/SignupONGForm";
 import SignupDonorForm from "@/components/forms/SignupDonorForm";
-import { useAuth } from "@/features/auth/contexts/AuthContext";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { authService } from "@/features/auth/services/authService";
+import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setUserType } = useAuth();
+  const { login, user, isAuthenticated, isLoading, userType } = useAuth();
   const [showSelectUserType, setShowSelectUserType] = useState(false);
   const [signupType, setSignupType] = useState<"ong" | "donor" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (isAuthenticated && userType) {
+      switch (userType) {
+        case "donor":
+          router.push("/dashboard/donor");
+          break;
+        case "ong":
+          router.push("/dashboard/ong");
+          break;
+        case "admin":
+          router.push("/dashboard/admin");
+          break;
+      }
+    }
+  }, [isAuthenticated, isLoading, userType, router]);
 
   const handleCreateAccount = () => {
     setShowSelectUserType(true);
@@ -31,35 +53,40 @@ export default function LoginPage() {
     setSignupType(null);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // TODO: Implementar autenticação real com backend
-    // Por enquanto, vamos simular baseado no email
-    
-    // Simulação: determinar userType baseado no email
-    let determinedUserType: "donor" | "ong" | "admin" = "donor";
-    
-    if (email.includes("admin")) {
-      determinedUserType = "admin";
-    } else if (email.includes("ong")) {
-      determinedUserType = "ong";
+    if (!email || !password) {
+      setError("Por favor, preencha email e senha");
+      return;
     }
 
-    // Salvar userType no contexto
-    setUserType(determinedUserType);
+    setError(null);
+    setLoginLoading(true);
 
-    // Redirecionar baseado no tipo de usuário
-    switch (determinedUserType) {
-      case "donor":
-        router.push("/dashboard");
-        break;
-      case "ong":
-        router.push("/dashboard-ong");
-        break;
-      case "admin":
-        router.push("/dashboard-admin");
-        break;
+    try {
+      const response = await authService.signIn({
+        email,
+        password,
+      });
+
+      const { jwt: accessToken, user: userData } = response.data;
+
+      if (!userData || !accessToken) {
+        throw new Error("Resposta da API em formato inesperado");
+      }
+
+      login(userData, accessToken);
+
+    } catch (err: any) {
+      console.error("Erro ao fazer login:", err);
+      setError(
+        err?.response?.data?.message || 
+        err.message ||
+        "Erro ao fazer login. Verifique suas credenciais."
+      );
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -91,6 +118,14 @@ export default function LoginPage() {
                 Sistema de gerenciamento de doações
               </h1>
             </div>
+
+            {/* Erro de Login */}
+            {error && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
 
             {/* Email */}
             <div className="relative">
@@ -125,15 +160,24 @@ export default function LoginPage() {
             {/* Botão Login */}
             <Button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-black text-white font-semibold py-2 rounded-lg transition-all mt-6"
+              disabled={loginLoading}
+              className="w-full bg-gray-900 hover:bg-black text-white font-semibold py-2 rounded-lg transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Entrar
+              {loginLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Entrando...
+                </span>
+              ) : (
+                "Entrar"
+              )}
             </Button>
 
             {/* Botão de Cadastro */}
             <Button
               type="button"
-              className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium py-2 rounded-lg border border-gray-200 transition-colors"
+              disabled={loginLoading}
+              className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium py-2 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleCreateAccount}
             >
               Criar Conta

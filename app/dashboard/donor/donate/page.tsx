@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar } from "@/components/ui/sidebar";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const FOODS = [
   "Arroz",
@@ -35,6 +37,8 @@ export default function DonatePage() {
   const [items, setItems] = useState<DonationItem[]>([
     { food: "", quantity: 0, unit: "kg" },
   ]);
+  const router = useRouter();
+  const { logout } = useAuth();
 
   const handleAddItem = () => {
     setItems([...items, { food: "", quantity: 0, unit: "kg" }]);
@@ -77,6 +81,11 @@ export default function DonatePage() {
     );
   };
 
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50">
       {/* Sidebar */}
@@ -92,7 +101,7 @@ export default function DonatePage() {
           </div>
 
           <Button
-            onClick={() => alert("Logout realizado!")}
+            onClick={handleLogout}
             className="bg-gray-900 hover:bg-black text-white font-medium px-4 py-2 rounded-lg"
           >
             Logout
@@ -267,3 +276,4 @@ export default function DonatePage() {
     </div>
   );
 }
+

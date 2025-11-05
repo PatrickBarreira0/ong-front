@@ -5,10 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar } from "@/components/ui/sidebar";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
-export default function Dashboard() {
+export default function DonorDashboard() {
   const [userName] = useState("Usuário"); // Será substituído com dados reais
   const router = useRouter();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50">
@@ -25,7 +32,7 @@ export default function Dashboard() {
           </div>
           
           <Button
-            onClick={() => alert("Logout realizado!")}
+            onClick={handleLogout}
             className="bg-gray-900 hover:bg-black text-white font-medium px-4 py-2 rounded-lg"
           >
             Logout
@@ -74,7 +81,7 @@ export default function Dashboard() {
                 <div className="text-center">
                   <h3 className="text-gray-900 font-bold text-lg mb-4">Pronto para ajudar?</h3>
                   <Button
-                    onClick={() => router.push("/dashboard/donate")}
+                    onClick={() => router.push("/dashboard/donor/donate")}
                     className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium px-6 py-2 rounded-lg"
                   >
                     ➕ Fazer Nova Doação
@@ -153,3 +160,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

@@ -4,7 +4,7 @@ import apiClient from '@/lib/api';
 
 export const authService = {
   signIn(credentials) {
-    return apiClient.post('/auth/login', credentials);
+    return apiClient.post('/api/auth/local', credentials);
   },
   signUp(userData) {
     return apiClient.post<void>('/api/auth/local/register', userData);
