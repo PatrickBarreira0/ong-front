@@ -16,11 +16,12 @@ const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-
     const token = useAuthStore.getState().accessToken;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      delete config.headers.Authorization;
     }
 
     return config;
@@ -28,6 +29,18 @@ apiClient.interceptors.request.use(
   (error: AxiosError) => {
     return Promise.reject(error);
   }
+);
+
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      useAuthStore.getState().logout();
+    }
+    return Promise.reject(error);
+  },
 );
 
 export default apiClient;

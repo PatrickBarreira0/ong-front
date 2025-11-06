@@ -10,7 +10,7 @@ export const authService = {
     return apiClient.post<void>('/api/auth/local/register', userData);
   },
   getMe(config?: AxiosRequestConfig) {
-    return apiClient.get('/auth/usuario/me', config);
+    return apiClient.get('/api/users/me', config);
   },
   refreshToken: (config?: AxiosRequestConfig) => {
     return apiClient.post('/auth/refresh', undefined, config);

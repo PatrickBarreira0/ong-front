@@ -9,17 +9,17 @@ import SelectUserTypeModal from "@/components/modals/SelectUserTypeModal";
 import SignupONGForm from "@/components/forms/SignupONGForm";
 import SignupDonorForm from "@/components/forms/SignupDonorForm";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { authService } from "@/features/auth/services/authService";
+import { useSignIn } from "@/features/auth/hooks/useSignIn";
 import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user, isAuthenticated, isLoading, userType } = useAuth();
+  const { user, isAuthenticated, isLoading, userType } = useAuth();
+  const { signIn, isPending } = useSignIn();
   const [showSelectUserType, setShowSelectUserType] = useState(false);
   const [signupType, setSignupType] = useState<"ong" | "donor" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loginLoading, setLoginLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function LoginPage() {
     setSignupType(null);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email || !password) {
@@ -62,32 +62,7 @@ export default function LoginPage() {
     }
 
     setError(null);
-    setLoginLoading(true);
-
-    try {
-      const response = await authService.signIn({
-        email,
-        password,
-      });
-
-      const { jwt: accessToken, user: userData } = response.data;
-
-      if (!userData || !accessToken) {
-        throw new Error("Resposta da API em formato inesperado");
-      }
-
-      login(userData, accessToken);
-
-    } catch (err: any) {
-      console.error("Erro ao fazer login:", err);
-      setError(
-        err?.response?.data?.message || 
-        err.message ||
-        "Erro ao fazer login. Verifique suas credenciais."
-      );
-    } finally {
-      setLoginLoading(false);
-    }
+    signIn({ identifier: email, password });
   };
 
   if (signupType === "ong") {
@@ -160,10 +135,10 @@ export default function LoginPage() {
             {/* Botão Login */}
             <Button
               type="submit"
-              disabled={loginLoading}
+              disabled={isPending}
               className="w-full bg-gray-900 hover:bg-black text-white font-semibold py-2 rounded-lg transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loginLoading ? (
+              {isPending ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Entrando...
@@ -176,7 +151,7 @@ export default function LoginPage() {
             {/* Botão de Cadastro */}
             <Button
               type="button"
-              disabled={loginLoading}
+              disabled={isPending}
               className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium py-2 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleCreateAccount}
             >
