@@ -3,14 +3,95 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar } from "@/components/ui/sidebar";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { DataTable } from "@/components/ui/data-table";
+import { useDonationsByUser } from "@/features/dashboard/hooks/useDonations";
+import type { PaginationState, SortingState, ColumnDef } from "@tanstack/react-table";
+import type { DonationItem } from "@/features/dashboard/services/donationService";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "Entregue":
+      return "bg-green-100 text-green-700";
+    case "Enviada":
+      return "bg-yellow-100 text-yellow-700";
+    case "Pendente":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+};
 
 export default function DonorDashboard() {
-  const [userName] = useState("Usuário"); // Será substituído com dados reais
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const [userName] = useState("Usuário");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Get user ID from auth context
+  const userId = user?.id || "1"; // Temporary - will come from user context
+
+  const { data: donationsData, isLoading, isError } = useDonationsByUser({
+    userId,
+    pagination,
+    sorting,
+  });
+
+  // Define columns for DataTable
+  const columns = useMemo<ColumnDef<DonationItem>[]>(
+    () => [
+      {
+        accessorKey: "id",
+        header: "ID",
+        cell: ({ getValue }) => `#${String(getValue()).padStart(4, "0")}`,
+      },
+      {
+        accessorKey: "Alimentos",
+        header: "Alimento",
+      },
+      {
+        accessorKey: "quantity",
+        header: "Quantidade",
+      },
+      {
+        accessorKey: "ong",
+        header: "ONG Destino",
+        cell: ({ getValue }) => {
+          const ong = getValue<DonationItem["ong"]>();
+          return ong?.name || "-";
+        },
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Data",
+        cell: ({ getValue }) => {
+          const date = new Date(getValue() as string);
+          return formatDistanceToNow(date, { addSuffix: true, locale: ptBR });
+        },
+      },
+      {
+        accessorKey: "status_donation",
+        header: "Status",
+        cell: ({ getValue }) => {
+          const status = getValue() as string;
+          return (
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+              {status}
+            </span>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   const handleLogout = () => {
     logout();
@@ -98,26 +179,19 @@ export default function DonorDashboard() {
               <CardContent className="pt-6 pb-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Suas Doações Recentes</h3>
                 <p className="text-gray-600 text-sm mb-6">Acompanhe o status das suas últimas doações.</p>
-                
-                {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm">Alimento</th>
-                        <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm">Quantidade</th>
-                        <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td colSpan={3} className="py-12 text-center text-gray-500">
-                          Você ainda não registrou nenhuma doação.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  columns={columns}
+                  data={donationsData?.data || []}
+                  pageCount={donationsData?.meta?.pagination?.pageCount || 0}
+                  pagination={pagination}
+                  onPaginationChange={setPagination}
+                  sorting={sorting}
+                  onSortingChange={setSorting}
+                  isLoading={isLoading}
+                  isError={isError}
+                  manualPagination
+                  manualSorting
+                />
               </CardContent>
             </Card>
 
