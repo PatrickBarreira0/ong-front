@@ -5,43 +5,32 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Sidebar } from "@/components/ui/sidebar";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/features/auth/hooks/useAuth";
-
-const FOODS = [
-  "Arroz",
-  "Feijão",
-  "Macarrão",
-  "Leite",
-  "Pão",
-  "Óleo",
-  "Açúcar",
-  "Sal",
-  "Café",
-  "Acucar",
-];
-
-const ONGS = [
-  { id: 1, name: "Comunidade Solidária", address: "Rua das Flores, 123" },
-  { id: 2, name: "Anjos da Noite", address: "Avenida Principal, 456" },
-  { id: 3, name: "Esperança Viva", address: "Praça Central, 789" },
-];
+import { useAuth, useCurrentUser } from "@/features/auth/hooks/useAuth";
+import { useAllOngs } from "@/features/dashboard/hooks/useOngs";
+import { useFoodTypes } from "@/features/dashboard/hooks/useFoodTypes";
+import { useDonationSubmit } from "@/features/dashboard/hooks/useDonationSubmit";
 
 interface DonationItem {
   food: string;
-  quantity: number;
+  foodDocumentId: string;
+  quantidade: string;
   unit: string;
 }
 
 export default function DonatePage() {
   const [selectedOng, setSelectedOng] = useState<number | null>(null);
   const [items, setItems] = useState<DonationItem[]>([
-    { food: "", quantity: 0, unit: "kg" },
+    { food: "", foodDocumentId: "", quantidade: "", unit: "kg" },
   ]);
   const router = useRouter();
   const { logout } = useAuth();
+  const user = useCurrentUser();
+  const { data: ongsData } = useAllOngs();
+  const { data: foodTypes } = useFoodTypes();
+  const { mutate: submitDonation, isPending } = useDonationSubmit();
 
   const handleAddItem = () => {
-    setItems([...items, { food: "", quantity: 0, unit: "kg" }]);
+    setItems([...items, { food: "", foodDocumentId: "", quantidade: "", unit: "kg" }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -54,10 +43,17 @@ export default function DonatePage() {
     value: string | number
   ) => {
     const newItems = [...items];
-    if (field === "quantity") {
-      newItems[index][field] = Number(value);
+    if (field === "quantidade") {
+      newItems[index][field] = value as string;
+    } else if (field === "food") {
+      const selectedFood = foodTypes?.find(food => food.Nome === value);
+      newItems[index].food = value as string;
+      if (selectedFood) {
+        newItems[index].unit = selectedFood.UnidadeMedida;
+        newItems[index].foodDocumentId = selectedFood.documentId;
+      }
     } else {
-      newItems[index][field as keyof Omit<DonationItem, 'quantity'>] = value as string;
+      newItems[index][field as keyof Omit<DonationItem, 'quantidade' | 'food' | 'foodDocumentId'>] = value as string;
     }
     setItems(newItems);
   };
@@ -68,17 +64,24 @@ export default function DonatePage() {
       return;
     }
 
-    const validItems = items.filter((item) => item.food && item.quantity > 0);
+    const validItems = items.filter((item) => item.food && item.quantidade && Number(item.quantidade) > 0);
     if (validItems.length === 0) {
       alert("Por favor, adicione pelo menos um item válido");
       return;
     }
 
-    alert(
-      `Doação enviada!\n\nONG: ${
-        ONGS.find((o) => o.id === selectedOng)?.name
-      }\nItens: ${validItems.map((i) => `${i.food} (${i.quantity} ${i.unit})`).join(", ")}`
-    );
+    const selectedOngData = ongsData?.find((o) => o.id === selectedOng);
+
+    const submissionItems = validItems.map((item) => ({
+      tipo_alimento: item.foodDocumentId,
+      quantidade: Number(item.quantidade),
+    }));
+
+    submitDonation({
+      items: submissionItems,
+      ong_recipient: selectedOngData.documentId,
+      donorDocumentId: user.id,
+    });
   };
 
   const handleLogout = () => {
@@ -118,47 +121,50 @@ export default function DonatePage() {
                 <p className="text-gray-600 text-sm mb-6">Escolha uma das ONGs parceiras para receber sua doação.</p>
 
                 <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4 min-w-max">
-                    {ONGS.map((ong) => (
-                      <button
-                        key={ong.id}
-                        onClick={() => setSelectedOng(selectedOng === ong.id ? null : ong.id)}
-                        className={`flex-shrink-0 w-72 p-4 rounded-lg border-2 transition text-left ${
-                          selectedOng === ong.id
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-1 ${
-                              selectedOng === ong.id
-                                ? "bg-blue-500 border-blue-500"
-                                : "border-gray-300"
-                            }`}
-                          >
-                            {selectedOng === ong.id && (
-                              <svg
-                                className="w-3 h-3 text-white"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            )}
+                  {(!ongsData || ongsData.length === 0) ? (
+                    <p className="text-gray-500 text-sm">Nenhuma ONG encontrada.</p>
+                  ) : (
+                    <div className="flex gap-4 min-w-max">
+                      {ongsData.map((ong) => (
+                        <button
+                          key={ong.id}
+                          onClick={() => setSelectedOng(selectedOng === ong.id ? null : ong.id)}
+                          className={`flex-shrink-0 w-72 p-4 rounded-lg border-2 transition text-left ${
+                            selectedOng === ong.id
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 bg-white hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-1 ${
+                                selectedOng === ong.id
+                                  ? "bg-blue-500 border-blue-500"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {selectedOng === ong.id && (
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{ong.username}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{ong.name}</p>
-                            <p className="text-sm text-gray-500">{ong.address}</p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -182,11 +188,14 @@ export default function DonatePage() {
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value="">Selecione um alimento</option>
-                          {FOODS.map((food) => (
-                            <option key={food} value={food}>
-                              {food}
-                            </option>
-                          ))}
+                          {foodTypes?.map((food) => {
+                            const isSelected = items.some((i, idx) => i.food === food.Nome && idx !== index);
+                            return (
+                              <option key={food.id} value={food.Nome} disabled={isSelected}>
+                                {food.Nome} {isSelected ? "(já adicionado)" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
 
@@ -197,8 +206,8 @@ export default function DonatePage() {
                         <input
                           type="number"
                           min="0"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                          value={item.quantidade}
+                          onChange={(e) => handleItemChange(index, "quantidade", e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="0"
                         />
@@ -209,13 +218,13 @@ export default function DonatePage() {
                           Unidade
                         </label>
                         <select
-                          value={item.unit}
-                          onChange={(e) => handleItemChange(index, "unit", e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          value={item.food ? item.unit : ""}
+                          disabled
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed appearance-none focus:ring-0 focus:border-gray-300"
                         >
-                          <option value="kg">kg</option>
-                          <option value="L">L</option>
-                          <option value="unidades">unidades</option>
+                          <option value="">
+                            {item.food ? item.unit : ""}
+                          </option>
                         </select>
                       </div>
 
@@ -259,13 +268,15 @@ export default function DonatePage() {
             <div className="flex gap-4 mt-8">
               <Button
                 onClick={handleSubmit}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg"
+                disabled={isPending}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ✓ Enviar Doação
+                {isPending ? "Enviando..." : "✓ Enviar Doação"}
               </Button>
               <Button
                 onClick={() => window.history.back()}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium px-6 py-3 rounded-lg"
+                disabled={isPending}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ✕ Cancelar
               </Button>
