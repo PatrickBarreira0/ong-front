@@ -7,11 +7,18 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { DataTable } from "@/components/ui/data-table";
-import { useDonations } from "@/features/dashboard/hooks/useDonations";
+import { useAllDonations } from "@/features/dashboard/hooks/useAllDonations";
+import { useUpdateDonationStatus } from "@/features/dashboard/hooks/useUpdateDonationStatus";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { PaginationState, SortingState, ColumnDef } from "@tanstack/react-table";
-import type { DonationItem } from "@/features/dashboard/services/donationService";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MoreVertical } from "lucide-react";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -26,6 +33,17 @@ const getStatusColor = (status: string) => {
   }
 };
 
+interface DonationRow {
+  id: string;
+  documentId: string;
+  items: Array<{ name: string; quantity: string }>;
+  ong: { id: string; name?: string };
+  donor?: string;
+  status_donation: 'Pendente' | 'Enviada' | 'Entregue';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { logout } = useAuth();
@@ -35,13 +53,31 @@ export default function AdminDashboard() {
   });
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const { data: donationsData, isLoading, isError } = useDonations({
-    pagination,
-    sorting,
-  });
+  const { data: donationsData, isLoading, isError } = useAllDonations();
+  const { mutate: updateStatus, isPending } = useUpdateDonationStatus();
 
-  // Define columns for DataTable
-  const columns = useMemo<ColumnDef<DonationItem>[]>(
+  const mappedDonations = useMemo(() => {
+    if (!donationsData) return [];
+
+    return donationsData.map(donation => ({
+      id: String(donation.id),
+      documentId: donation.documentId,
+      items: donation.item_doado.map(item => ({
+        name: item.tipo_alimento?.Nome || "N/A",
+        quantity: `${item.quantidade} ${item.tipo_alimento?.UnidadeMedida || ""}`,
+      })),
+      ong: {
+        id: String(donation.ong_recipient?.id),
+        name: donation.ong_recipient?.username,
+      },
+      donor: donation.donor?.username,
+      status_donation: donation.status_donation,
+      createdAt: donation.createdAt,
+      updatedAt: donation.updatedAt,
+    }));
+  }, [donationsData]);
+
+  const columns = useMemo<ColumnDef<DonationRow>[]>(
     () => [
       {
         accessorKey: "id",
@@ -49,26 +85,29 @@ export default function AdminDashboard() {
         cell: ({ getValue }) => `#${String(getValue()).padStart(4, "0")}`,
       },
       {
-        accessorKey: "Alimentos",
-        header: "Alimento",
-      },
-      {
-        accessorKey: "quantity",
-        header: "Quantidade",
-      },
-      {
-        accessorKey: "user",
-        header: "Doador",
+        accessorKey: "items",
+        header: "Itens",
         cell: ({ getValue }) => {
-          const user = getValue<DonationItem["user"]>();
-          return user?.username || "-";
+          const items = getValue<Array<{ name: string; quantity: string }>>();
+          return (
+            <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="space-y-2">
+                {items.map((item, idx) => (
+                  <div key={idx} className="text-sm border-b border-gray-200 pb-2 last:border-b-0">
+                    <div className="font-medium text-gray-900">{item.name}</div>
+                    <div className="text-gray-600 text-xs">{item.quantity}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
         },
       },
       {
         accessorKey: "ong",
         header: "ONG Destino",
         cell: ({ getValue }) => {
-          const ong = getValue<DonationItem["ong"]>();
+          const ong = getValue<{ id: string; name?: string }>();
           return ong?.name || "-";
         },
       },
@@ -92,8 +131,47 @@ export default function AdminDashboard() {
           );
         },
       },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => {
+          const donation = row.original;
+          const statuses: Array<'Pendente' | 'Enviada' | 'Entregue'> = ['Pendente', 'Enviada', 'Entregue'];
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {statuses.map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onClick={() =>
+                      updateStatus({
+                        donationId: donation.documentId,
+                        status,
+                      })
+                    }
+                    disabled={donation.status_donation === status}
+                  >
+                    {status}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
     ],
-    []
+    [isPending]
   );
 
   const handleLogout = () => {
@@ -137,7 +215,7 @@ export default function AdminDashboard() {
                     </svg>
                   </h3>
                   <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {donationsData?.meta?.pagination?.total || 0}
+                    {donationsData?.length || 0}
                   </p>
                   <p className="text-gray-500 text-sm">Registros no sistema</p>
                 </div>
@@ -154,7 +232,7 @@ export default function AdminDashboard() {
                     </svg>
                   </h3>
                   <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {donationsData?.data?.filter(d => d.status_donation === "Entregue").length || 0}
+                    {donationsData?.filter(d => d.status_donation === "Entregue").length || 0}
                   </p>
                   <p className="text-gray-500 text-sm">Concluídas com sucesso</p>
                 </div>
@@ -171,7 +249,7 @@ export default function AdminDashboard() {
                     </svg>
                   </h3>
                   <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {donationsData?.data?.filter(d => d.status_donation !== "Entregue").length || 0}
+                    {donationsData?.filter(d => d.status_donation !== "Entregue").length || 0}
                   </p>
                   <p className="text-gray-500 text-sm">Pendentes ou em processamento</p>
                 </div>
@@ -185,8 +263,8 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Todas as Doações</h3>
               <DataTable
                 columns={columns}
-                data={donationsData?.data || []}
-                pageCount={donationsData?.meta?.pagination?.pageCount || 0}
+                data={mappedDonations}
+                pageCount={1}
                 pagination={pagination}
                 onPaginationChange={setPagination}
                 sorting={sorting}
@@ -195,6 +273,7 @@ export default function AdminDashboard() {
                 isError={isError}
                 manualPagination
                 manualSorting
+                hidePagination
               />
             </CardContent>
           </Card>
