@@ -6,8 +6,8 @@ import { Sidebar } from "@/components/ui/sidebar";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useMe } from "@/features/auth/hooks/useMe";
 import { DataTable } from "@/components/ui/data-table";
-import { useDonationsByUser } from "@/features/dashboard/hooks/useDonations";
 import type { PaginationState, SortingState, ColumnDef } from "@tanstack/react-table";
 import type { DonationItem } from "@/features/dashboard/services/donationService";
 import { formatDistanceToNow } from "date-fns";
@@ -28,22 +28,55 @@ const getStatusColor = (status: string) => {
 
 export default function DonorDashboard() {
   const router = useRouter();
-  const { logout, user } = useAuth();
-  const [userName] = useState("Usuário");
+  const { logout } = useAuth();
+  const { data: meData, isLoading, isError } = useMe();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // Get user ID from auth context
-  const userId = user?.id || "1"; // Temporary - will come from user context
+  const userName = meData?.username || "Usuário";
 
-  const { data: donationsData, isLoading, isError } = useDonationsByUser({
-    userId,
-    pagination,
-    sorting,
-  });
+  const { totalDonations, deliveredDonations } = useMemo(() => {
+    if (!meData?.donations) return { totalDonations: 0, deliveredDonations: 0 };
+
+    const allItems = meData.donations.flatMap(donation =>
+      donation.item_doado.map(item => ({
+        ...item,
+        status: donation.status_donation,
+      }))
+    );
+
+    return {
+      totalDonations: allItems.length,
+      deliveredDonations: allItems.filter(item => item.status === "Entregue").length,
+    };
+  }, [meData?.donations]);
+
+  const mappedDonations = useMemo(() => {
+    if (!meData?.donations) return [];
+
+    const flattened = meData.donations
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .flatMap(donation =>
+        donation.item_doado.map(item => ({
+          id: String(donation.id),
+          Alimentos: item.tipo_alimento.Nome,
+          quantity: `${item.quantidade} ${item.tipo_alimento.UnidadeMedida}`,
+          ong: {
+            id: String(donation.ong_recipient.id),
+            name: donation.ong_recipient.username,
+          },
+          status_donation: donation.status_donation,
+          createdAt: donation.createdAt,
+          updatedAt: donation.updatedAt,
+        }))
+      )
+      .slice(0, 10);
+
+    return flattened;
+  }, [meData?.donations]);
 
   // Define columns for DataTable
   const columns = useMemo<ColumnDef<DonationItem>[]>(
@@ -128,13 +161,10 @@ export default function DonorDashboard() {
             <Card className="bg-white border border-gray-200 shadow-md">
               <CardContent className="pt-6 pb-6">
                 <div>
-                  <h3 className="text-gray-600 font-medium mb-3 flex items-center gap-2">
+                  <h3 className="text-gray-600 font-medium mb-3">
                     Total de Doações
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
                   </h3>
-                  <p className="text-4xl font-bold text-gray-900 mb-2">0</p>
+                  <p className="text-4xl font-bold text-gray-900 mb-2">{totalDonations}</p>
                   <p className="text-gray-500 text-sm">Obrigado!</p>
                 </div>
               </CardContent>
@@ -144,13 +174,10 @@ export default function DonorDashboard() {
             <Card className="bg-white border border-gray-200 shadow-md">
               <CardContent className="pt-6 pb-6">
                 <div>
-                  <h3 className="text-gray-600 font-medium mb-3 flex items-center gap-2">
+                  <h3 className="text-gray-600 font-medium mb-3">
                     Doações Entregues
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
                   </h3>
-                  <p className="text-4xl font-bold text-gray-900 mb-2">0</p>
+                  <p className="text-4xl font-bold text-gray-900 mb-2">{deliveredDonations}</p>
                   <p className="text-gray-500 text-sm">Obrigado!</p>
                 </div>
               </CardContent>
@@ -181,8 +208,8 @@ export default function DonorDashboard() {
                 <p className="text-gray-600 text-sm mb-6">Acompanhe o status das suas últimas doações.</p>
                 <DataTable
                   columns={columns}
-                  data={donationsData?.data || []}
-                  pageCount={donationsData?.meta?.pagination?.pageCount || 0}
+                  data={mappedDonations}
+                  pageCount={1}
                   pagination={pagination}
                   onPaginationChange={setPagination}
                   sorting={sorting}
@@ -191,6 +218,7 @@ export default function DonorDashboard() {
                   isError={isError}
                   manualPagination
                   manualSorting
+                  hidePagination
                 />
               </CardContent>
             </Card>
