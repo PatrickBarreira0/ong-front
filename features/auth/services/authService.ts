@@ -13,9 +13,12 @@ export const authService = {
     return apiClient.get('/api/users/me', config);
   },
   refreshToken: (config?: AxiosRequestConfig) => {
-    return apiClient.post('/auth/refresh', undefined, config);
+    return apiClient.post('/api/auth/refresh', undefined, config);
   },
   logout: () => {
-    return apiClient.post('/auth/logout');
+    return apiClient.post('/api/auth/logout');
+  },
+  setUserRole(role: string, config?: AxiosRequestConfig) {
+    return apiClient.put(`/api/user/role/${role}`, {}, config);
   },
 };

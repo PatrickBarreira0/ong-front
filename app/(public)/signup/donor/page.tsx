@@ -1,22 +1,21 @@
 "use client";
 
 import { useSignUp } from "@/features/auth/hooks/useSignUp";
+import { useSetUserRole } from "@/features/auth/hooks/useSetUserRole";
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCNPJ } from "@/lib/format";
+import { formatCPF } from "@/lib/format";
 
-interface SignupONGFormProps {
-  onBack: () => void;
-}
-
-export default function SignupONGForm({ onBack }: SignupONGFormProps) {
-  const { signUp, isPending } = useSignUp();
+export default function SignupDonorPage() {
+  const { signUp, isPending: isSigningUp } = useSignUp();
+  const { setUserRole, isPending: isSettingRole } = useSetUserRole();
   const [formData, setFormData] = useState({
     email: "",
-    ongName: "",
-    cnpj: "",
+    username: "",
+    cpf: "",
     password: "",
     passwordConfirm: "",
   });
@@ -26,15 +25,14 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
     const { name, value } = e.target;
     let formattedValue = value;
 
-    if (name === "cnpj") {
-      formattedValue = formatCNPJ(value);
+    if (name === "cpf") {
+      formattedValue = formatCPF(value);
     }
 
     setFormData((prev) => ({
       ...prev,
       [name]: formattedValue,
     }));
-    // Limpar erro do campo ao digitar
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -52,14 +50,16 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
       newErrors.email = "Email inválido";
     }
 
-    if (!formData.ongName) {
-      newErrors.ongName = "Nome da ONG é obrigatório";
+    if (!formData.username) {
+      newErrors.username = "Nome de usuário é obrigatório";
+    } else if (formData.username.length < 3) {
+      newErrors.username = "Nome de usuário deve ter pelo menos 3 caracteres";
     }
 
-    if (!formData.cnpj) {
-      newErrors.cnpj = "CNPJ é obrigatório";
-    } else if (!/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(formData.cnpj)) {
-      newErrors.cnpj = "CNPJ inválido (formato: XX.XXX.XXX/XXXX-XX)";
+    if (!formData.cpf) {
+      newErrors.cpf = "CPF é obrigatório";
+    } else if (!/^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(formData.cpf)) {
+      newErrors.cpf = "CPF inválido (formato: XXX.XXX.XXX-XX)";
     }
 
     if (!formData.password) {
@@ -77,7 +77,7 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
     return newErrors;
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const newErrors = validateForm();
@@ -90,12 +90,27 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
       {
         email: formData.email,
         password: formData.password,
-        username: formData.ongName,
-        documento: formData.cnpj,
+        username: formData.username,
+        documento: formData.cpf,
       },
       {
-        onSuccess: () => {
-          console.log("Cadastro realizado com sucesso!");
+        onSuccess: (data: any) => {
+          const jwt = data?.jwt;
+          if (jwt) {
+            setUserRole(
+              { role: "Donor", jwt },
+              {
+                onSuccess: () => {
+                },
+                onError: (error) => {
+                  console.error("Erro ao atribuir role:", error);
+                  setErrors({ submit: "Erro ao finalizar cadastro. Tente novamente." });
+                },
+              }
+            );
+          } else {
+            setErrors({ submit: "Erro ao obter token. Tente novamente." });
+          }
         },
         onError: (error) => {
           console.error("Erro ao cadastrar:", error);
@@ -107,13 +122,12 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-gradient-to-b from-blue-50 to-white border-0 shadow-lg">
+      <Card className="w-full max-w-md bg-gradient-to-b from-green-50 to-white border-0 shadow-lg">
         <CardContent className="pt-8 pb-12 px-8">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Título */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Cadastro de ONG
+                Cadastro de Doador
               </h1>
               <p className="text-sm text-gray-600">
                 Preencha os dados abaixo para se cadastrar
@@ -146,7 +160,7 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
                   onChange={handleChange}
                   placeholder="seu@email.com"
                   className={`pl-10 bg-gray-50 border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 rounded-lg ${
-                    errors.email ? "focus:ring-red-300" : "focus:ring-blue-300"
+                    errors.email ? "focus:ring-red-300" : "focus:ring-green-300"
                   }`}
                 />
               </div>
@@ -157,7 +171,7 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome da ONG
+                Nome de Usuário
               </label>
               <div className="relative">
                 <svg
@@ -170,28 +184,28 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5.581m0 0H9m5.581 0cm0 1.552-.121 3.075-.352 4.592M9 21m0 0H4m9 0h5m-9 0cm0 1.552.121 3.075.352 4.592M9 3h.01M9 9h.01M9 15h.01M12 9h.01M15 9h.01M12 15h.01"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                   />
                 </svg>
                 <Input
                   type="text"
-                  name="ongName"
-                  value={formData.ongName}
+                  name="username"
+                  value={formData.username}
                   onChange={handleChange}
-                  placeholder="Nome da sua organização"
+                  placeholder="Seu nome de usuário"
                   className={`pl-10 bg-gray-50 border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 rounded-lg ${
-                    errors.ongName ? "focus:ring-red-300" : "focus:ring-blue-300"
+                    errors.username ? "focus:ring-red-300" : "focus:ring-green-300"
                   }`}
                 />
               </div>
-              {errors.ongName && (
-                <p className="text-red-500 text-sm mt-1">{errors.ongName}</p>
+              {errors.username && (
+                <p className="text-red-500 text-sm mt-1">{errors.username}</p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                CNPJ
+                CPF
               </label>
               <div className="relative">
                 <svg
@@ -209,17 +223,17 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
                 </svg>
                 <Input
                   type="text"
-                  name="cnpj"
-                  value={formData.cnpj}
+                  name="cpf"
+                  value={formData.cpf}
                   onChange={handleChange}
-                  placeholder="XX.XXX.XXX/XXXX-XX"
+                  placeholder="XXX.XXX.XXX-XX"
                   className={`pl-10 bg-gray-50 border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 rounded-lg ${
-                    errors.cnpj ? "focus:ring-red-300" : "focus:ring-blue-300"
+                    errors.cpf ? "focus:ring-red-300" : "focus:ring-green-300"
                   }`}
                 />
               </div>
-              {errors.cnpj && (
-                <p className="text-red-500 text-sm mt-1">{errors.cnpj}</p>
+              {errors.cpf && (
+                <p className="text-red-500 text-sm mt-1">{errors.cpf}</p>
               )}
             </div>
 
@@ -249,7 +263,7 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
                   onChange={handleChange}
                   placeholder="Senha"
                   className={`pl-10 bg-gray-50 border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 rounded-lg ${
-                    errors.password ? "focus:ring-red-300" : "focus:ring-blue-300"
+                    errors.password ? "focus:ring-red-300" : "focus:ring-green-300"
                   }`}
                 />
               </div>
@@ -258,7 +272,6 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
               )}
             </div>
 
-            {/* Confirmar Senha */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Confirmar Senha
@@ -286,7 +299,7 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
                   className={`pl-10 bg-gray-50 border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 rounded-lg ${
                     errors.passwordConfirm
                       ? "focus:ring-red-300"
-                      : "focus:ring-blue-300"
+                      : "focus:ring-green-300"
                   }`}
                 />
               </div>
@@ -297,21 +310,21 @@ export default function SignupONGForm({ onBack }: SignupONGFormProps) {
               )}
             </div>
 
-            {/* Botões */}
             <div className="flex gap-3 mt-8">
-              <Button
-                type="button"
-                onClick={onBack}
-                className="flex-1 bg-white hover:bg-gray-50 text-gray-900 font-medium py-2 rounded-lg border border-gray-200 transition-colors"
-              >
-                Voltar
-              </Button>
+              <Link href="/signin" className="flex-1">
+                <Button
+                  type="button"
+                  className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium py-2 rounded-lg border border-gray-200 transition-colors"
+                >
+                  Voltar
+                </Button>
+              </Link>
               <Button
                 type="submit"
-                disabled={isPending}
+                disabled={isSigningUp || isSettingRole}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
               >
-                {isPending ? "Cadastrando..." : "Cadastrar"}
+                {isSigningUp || isSettingRole ? "Cadastrando..." : "Cadastrar"}
               </Button>
             </div>
           </form>

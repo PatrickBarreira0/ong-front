@@ -1,56 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import SelectUserTypeModal from "@/components/modals/SelectUserTypeModal";
-import SignupONGForm from "@/app/(public)/signup/ong/SignupONGForm";
-import SignupDonorForm from "@/app/(public)/signup/donor/SignupDonorForm";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSignIn } from "@/features/auth/hooks/useSignIn";
 import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { user, isAuthenticated, isLoading, userType } = useAuth();
   const { signIn, isPending } = useSignIn();
   const [showSelectUserType, setShowSelectUserType] = useState(false);
-  const [signupType, setSignupType] = useState<"ong" | "donor" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (isAuthenticated && userType) {
-      switch (userType) {
-        case "donor":
-          router.push("/dashboard/donor");
-          break;
-        case "ong":
-          router.push("/dashboard/ong");
-          break;
-        case "admin":
-          router.push("/dashboard/admin");
-          break;
-      }
-    }
-  }, [isAuthenticated, isLoading, userType, router]);
 
   const handleCreateAccount = () => {
     setShowSelectUserType(true);
   };
 
   const handleSelectUserType = (type: "ong" | "donor") => {
-    setSignupType(type);
-    setShowSelectUserType(false);
-  };
-
-  const handleBackToLogin = () => {
-    setSignupType(null);
+    // Navigate to signup page based on type
+    if (type === "ong") {
+      window.location.href = "/signup/ong";
+    } else if (type === "donor") {
+      window.location.href = "/signup/donor";
+    }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -64,14 +40,6 @@ export default function LoginPage() {
     setError(null);
     signIn({ identifier: email, password });
   };
-
-  if (signupType === "ong") {
-    return <SignupONGForm onBack={handleBackToLogin} />;
-  }
-
-  if (signupType === "donor") {
-    return <SignupDonorForm onBack={handleBackToLogin} />;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center p-4">
