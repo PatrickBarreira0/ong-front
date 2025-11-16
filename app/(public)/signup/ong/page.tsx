@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCNPJ } from "@/lib/format";
+import { AlertCircle } from "lucide-react";
 
 export default function SignupONGPage() {
   const router = useRouter();
@@ -104,7 +105,7 @@ export default function SignupONGPage() {
                 onSuccess: () => {
                   router.push("/signin?signup=success");
                 },
-                onError: (error) => {
+                onError: () => {
                   setErrors({ submit: "Erro ao finalizar cadastro. Tente novamente." });
                 },
               }
@@ -113,8 +114,16 @@ export default function SignupONGPage() {
             setErrors({ submit: "Erro ao obter token. Tente novamente." });
           }
         },
-        onError: (error) => {
-          setErrors({ submit: "Erro ao cadastrar. Tente novamente." });
+        onError: (error: any) => {
+          const apiMessage =
+            error?.response?.data?.error?.message ||
+            error?.message ||
+            "";
+          if (typeof apiMessage === "string" && apiMessage.toLowerCase().includes("already taken")) {
+            setErrors({ submit: "Email ou nome de usuário já está em uso." });
+          } else {
+            setErrors({ submit: "Erro ao cadastrar. Tente novamente." });
+          }
         },
       }
     );
@@ -125,6 +134,12 @@ export default function SignupONGPage() {
       <Card className="w-full max-w-md bg-gradient-to-b from-blue-50 to-white border-0 shadow-lg">
         <CardContent className="pt-8 pb-12 px-8">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {errors.submit && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-800">{errors.submit}</p>
+              </div>
+            )}
             {/* Título */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
