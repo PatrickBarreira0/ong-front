@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +9,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import SelectUserTypeModal from "@/components/modals/SelectUserTypeModal";
 import { useSignIn } from "@/features/auth/hooks/useSignIn";
 import { AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const { signIn, isPending } = useSignIn();
   const [showSelectUserType, setShowSelectUserType] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("signup") === "success") {
+      toast.success("Cadastro realizado com sucesso!");
+    }
+  }, [searchParams]);
 
   const handleCreateAccount = () => {
     setShowSelectUserType(true);

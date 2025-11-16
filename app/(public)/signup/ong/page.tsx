@@ -4,12 +4,14 @@ import { useSignUp } from "@/features/auth/hooks/useSignUp";
 import { useSetUserRole } from "@/features/auth/hooks/useSetUserRole";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCNPJ } from "@/lib/format";
 
 export default function SignupONGPage() {
+  const router = useRouter();
   const { signUp, isPending: isSigningUp } = useSignUp();
   const { setUserRole, isPending: isSettingRole } = useSetUserRole();
   const [formData, setFormData] = useState({
@@ -100,9 +102,9 @@ export default function SignupONGPage() {
               { role: "Ong", jwt },
               {
                 onSuccess: () => {
+                  router.push("/signin?signup=success");
                 },
                 onError: (error) => {
-                  console.error("Erro ao atribuir role:", error);
                   setErrors({ submit: "Erro ao finalizar cadastro. Tente novamente." });
                 },
               }
@@ -112,7 +114,6 @@ export default function SignupONGPage() {
           }
         },
         onError: (error) => {
-          console.error("Erro ao cadastrar:", error);
           setErrors({ submit: "Erro ao cadastrar. Tente novamente." });
         },
       }
