@@ -7,6 +7,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/auth/hooks/useMe";
+import { useAllOngs } from "@/features/dashboard/hooks/useOngs";
 import { DataTable } from "@/components/ui/data-table";
 import type { PaginationState, SortingState, ColumnDef } from "@tanstack/react-table";
 import type { DonationItem } from "@/features/dashboard/services/donationService";
@@ -30,6 +31,7 @@ export default function DonorDashboard() {
   const router = useRouter();
   const { logout } = useAuth();
   const { data: meData, isLoading, isError } = useMe();
+  const { data: ongsData } = useAllOngs();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -41,45 +43,38 @@ export default function DonorDashboard() {
   const { totalDonations, deliveredDonations } = useMemo(() => {
     if (!meData?.donations) return { totalDonations: 0, deliveredDonations: 0 };
 
-    const allItems = meData.donations.flatMap(donation =>
-      donation.item_doado.map(item => ({
-        ...item,
-        status: donation.status_donation,
-      }))
-    );
-
     return {
-      totalDonations: allItems.length,
-      deliveredDonations: allItems.filter(item => item.status === "Entregue").length,
+      totalDonations: meData.donations.length,
+      deliveredDonations: meData.donations.filter(donation => donation.status_donation === "Entregue").length,
     };
   }, [meData?.donations]);
 
   const mappedDonations = useMemo(() => {
     if (!meData?.donations) return [];
 
-    const flattened = meData.donations
+    const mapped = meData.donations
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .flatMap(donation =>
-        donation.item_doado.map(item => ({
-          id: String(donation.id),
-          Alimentos: item.tipo_alimento.Nome,
+      .map(donation => ({
+        id: String(donation.id),
+        items: donation.item_doado.map(item => ({
+          name: item.tipo_alimento.Nome,
           quantity: `${item.quantidade} ${item.tipo_alimento.UnidadeMedida}`,
-          ong: {
-            id: String(donation.ong_recipient.id),
-            name: donation.ong_recipient.username,
-          },
-          status_donation: donation.status_donation,
-          createdAt: donation.createdAt,
-          updatedAt: donation.updatedAt,
-        }))
-      )
+        })),
+        ong: {
+          id: String(donation.ong_recipient.id),
+          name: donation.ong_recipient.username,
+        },
+        status_donation: donation.status_donation,
+        createdAt: donation.createdAt,
+        updatedAt: donation.updatedAt,
+      }))
       .slice(0, 10);
 
-    return flattened;
+    return mapped;
   }, [meData?.donations]);
 
   // Define columns for DataTable
-  const columns = useMemo<ColumnDef<DonationItem>[]>(
+  const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
         accessorKey: "id",
@@ -87,18 +82,29 @@ export default function DonorDashboard() {
         cell: ({ getValue }) => `#${String(getValue()).padStart(4, "0")}`,
       },
       {
-        accessorKey: "Alimentos",
-        header: "Alimento",
-      },
-      {
-        accessorKey: "quantity",
-        header: "Quantidade",
+        accessorKey: "items",
+        header: "Itens",
+        cell: ({ getValue }) => {
+          const items = getValue<Array<{ name: string; quantity: string }>>();
+          return (
+            <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="space-y-2">
+                {items.map((item, idx) => (
+                  <div key={idx} className="text-sm border-b border-gray-200 pb-2 last:border-b-0">
+                    <div className="font-medium text-gray-900">{item.name}</div>
+                    <div className="text-gray-600 text-xs">{item.quantity}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "ong",
         header: "ONG Destino",
         cell: ({ getValue }) => {
-          const ong = getValue<DonationItem["ong"]>();
+          const ong = getValue<{ id: string; name: string }>();
           return ong?.name || "-";
         },
       },
@@ -228,32 +234,42 @@ export default function DonorDashboard() {
               <CardContent className="pt-6 pb-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-1">ONGs Parceiras</h3>
                 <p className="text-gray-600 text-sm mb-6">Conheça quem você está ajudando.</p>
-                
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3 pb-4 border-b border-gray-200">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">Comunidade Solidária</p>
-                      <p className="text-gray-500 text-xs">Rua das Flores, 123</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">Anjos da Noite</p>
-                      <p className="text-gray-500 text-xs">Avenida Principal, 456</p>
-                    </div>
+                {!ongsData || ongsData.length === 0 ? (
+                  <p className="text-gray-500 text-sm">Nenhuma ONG encontrada.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {ongsData.map((ong, index) => (
+                      <div
+                        key={ong.id}
+                        className={`flex items-start gap-3 ${index !== ongsData.length - 1 ? "pb-4 border-b border-gray-200" : ""}`}
+                      >
+                        <div
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            index % 2 === 0 ? "bg-blue-100" : "bg-purple-100"
+                          }`}
+                        >
+                          <svg
+                            className={`w-5 h-5 ${index % 2 === 0 ? "text-blue-600" : "text-purple-600"}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{ong.username}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
