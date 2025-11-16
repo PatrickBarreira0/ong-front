@@ -4,11 +4,18 @@ import { authService } from '@/features/auth/services/authService';
 interface ItemDoado {
   id: number;
   quantidade: number;
-  tipo_alimento: {
+  tipo_alimento?: {
     id: number;
     Nome: string;
     UnidadeMedida: string;
   };
+}
+
+interface Donor {
+  id: number;
+  username: string;
+  email: string;
+  documento?: string;
 }
 
 interface OngRecipient {
@@ -25,7 +32,8 @@ interface Donation {
   createdAt: string;
   updatedAt: string;
   item_doado: ItemDoado[];
-  ong_recipient: OngRecipient;
+  ong_recipient?: OngRecipient;
+  donor?: Donor;
 }
 
 interface MeResponse {
@@ -39,6 +47,7 @@ interface MeResponse {
     type: 'donor' | 'ong' | 'admin';
   };
   donations: Donation[];
+  donations_received?: Donation[];
 }
 
 export function useMe() {
