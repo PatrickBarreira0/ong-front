@@ -6,10 +6,9 @@ import { Sidebar } from "@/components/ui/sidebar";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useMe } from "@/features/auth/hooks/useMe";
 import { DataTable } from "@/components/ui/data-table";
-import { useDonationsByOng } from "@/features/dashboard/hooks/useDonations";
 import type { PaginationState, SortingState, ColumnDef } from "@tanstack/react-table";
-import type { DonationItem } from "@/features/dashboard/services/donationService";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -41,25 +40,56 @@ const getAvatarColor = (name: string) => {
 
 export default function ONGDashboard() {
   const router = useRouter();
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
+  const { data: meData, isLoading, isError } = useMe();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 8,
   });
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [ongName] = useState("Comunidade Solidária");
 
-  // Get ONG ID from user context (you'll need to add this to auth)
-  const ongId = "1"; // Temporary - will come from user context
+  const ongName = meData?.username || "ONG";
 
-  const { data: donationsData, isLoading, isError } = useDonationsByOng({
-    ongId,
-    pagination,
-    sorting,
-  });
+  const { totalDonations, deliveredDonations, pendingDonations } = useMemo(() => {
+    const donationsList = meData?.donations_received || meData?.donations || [];
+    if (donationsList.length === 0) return { totalDonations: 0, deliveredDonations: 0, pendingDonations: 0 };
+
+    return {
+      totalDonations: donationsList.length,
+      deliveredDonations: donationsList.filter(donation => donation.status_donation === "Entregue").length,
+      pendingDonations: donationsList.filter(donation => donation.status_donation === "Pendente" || donation.status_donation === "Enviada").length,
+    };
+  }, [meData?.donations_received, meData?.donations]);
+
+  const mappedDonations = useMemo(() => {
+    const donationsList = meData?.donations_received || meData?.donations || [];
+    if (donationsList.length === 0) return [];
+
+    const mapped = donationsList
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((donation: any) => ({
+        id: String(donation.id),
+        items: donation.item_doado.map((item: any) => ({
+          name: item.tipo_alimento?.Nome || `Item #${item.id}`,
+          quantity: item.tipo_alimento 
+            ? `${item.quantidade} ${item.tipo_alimento.UnidadeMedida}`
+            : `${item.quantidade} unidade(s)`,
+        })),
+        donor: {
+          id: String(donation.donor?.id || ""),
+          name: donation.donor?.username || "N/A",
+        },
+        status_donation: donation.status_donation,
+        createdAt: donation.createdAt,
+        updatedAt: donation.updatedAt,
+      }))
+      .slice(0, 10);
+
+    return mapped;
+  }, [meData?.donations_received, meData?.donations]);
 
   // Define columns for DataTable
-  const columns = useMemo<ColumnDef<DonationItem>[]>(
+  const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
         accessorKey: "id",
@@ -67,19 +97,30 @@ export default function ONGDashboard() {
         cell: ({ getValue }) => `#${String(getValue()).padStart(4, "0")}`,
       },
       {
-        accessorKey: "Alimentos",
-        header: "Alimento",
+        accessorKey: "items",
+        header: "Itens",
+        cell: ({ getValue }) => {
+          const items = getValue<Array<{ name: string; quantity: string }>>();
+          return (
+            <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="space-y-2">
+                {items.map((item, idx) => (
+                  <div key={idx} className="text-sm border-b border-gray-200 pb-2 last:border-b-0">
+                    <div className="font-medium text-gray-900">{item.name}</div>
+                    <div className="text-gray-600 text-xs">{item.quantity}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        },
       },
       {
-        accessorKey: "quantity",
-        header: "Quantidade",
-      },
-      {
-        accessorKey: "user",
+        accessorKey: "donor",
         header: "Doador",
         cell: ({ getValue }) => {
-          const user = getValue<DonationItem["user"]>();
-          return user?.username || "-";
+          const donor = getValue<{ id: string; name: string }>();
+          return donor?.name || "-";
         },
       },
       {
@@ -148,7 +189,7 @@ export default function ONGDashboard() {
                     </svg>
                   </h3>
                   <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {donationsData?.meta?.pagination?.total || 0}
+                    {totalDonations}
                   </p>
                   <p className="text-gray-500 text-sm">Obrigado aos doadores!</p>
                 </div>
@@ -166,7 +207,7 @@ export default function ONGDashboard() {
                     </svg>
                   </h3>
                   <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {donationsData?.data?.filter(d => d.status_donation === "Entregue").length || 0}
+                    {deliveredDonations}
                   </p>
                   <p className="text-gray-500 text-sm">Concluídas com sucesso</p>
                 </div>
@@ -184,7 +225,7 @@ export default function ONGDashboard() {
                     </svg>
                   </h3>
                   <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {donationsData?.data?.filter(d => d.status_donation !== "Entregue").length || 0}
+                    {pendingDonations}
                   </p>
                   <p className="text-gray-500 text-sm">Pendentes ou em processamento</p>
                 </div>
@@ -199,8 +240,8 @@ export default function ONGDashboard() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Histórico de Doações</h3>
               <DataTable
                 columns={columns}
-                data={donationsData?.data || []}
-                pageCount={donationsData?.meta?.pagination?.pageCount || 0}
+                data={mappedDonations}
+                pageCount={1}
                 pagination={pagination}
                 onPaginationChange={setPagination}
                 sorting={sorting}
@@ -209,6 +250,7 @@ export default function ONGDashboard() {
                 isError={isError}
                 manualPagination
                 manualSorting
+                hidePagination
               />
             </CardContent>
           </Card>
